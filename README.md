@@ -103,8 +103,8 @@ or
 ### 2. 🤖 开启机器人战斗模式 (Bot Fight Mode)
 
 *   **路径**: Cloudflare Dashboard -> 域名 -> Security (安全性) -> 设置 (Settings)。
-*   <img width="257" height="207" alt="image" src="https://github.com/user-attachments/assets/1eaad26e-35fd-4b3a-bd6d-fd544c410d09" />
-<img width="1591" height="383" alt="image" src="https://github.com/user-attachments/assets/34fbcf37-502f-43b8-963a-628d30e4066a" />
+    <img width="1591" height="383" alt="image" src="https://github.com/user-attachments/assets/34fbcf37-502f-43b8-963a-628d30e4066a" />
+    <img width="257" height="207" alt="image" src="https://github.com/user-attachments/assets/1eaad26e-35fd-4b3a-bd6d-fd544c410d09" />
 *   
 *   **操作**: 在页面上方找到 **“自动程序攻击模式” (Bot Fight Mode)**，开启开关。
 *   <img width="979" height="722" alt="image" src="https://github.com/user-attachments/assets/b8bc895f-abc3-4e83-b548-0ab85f82d0b0" />
