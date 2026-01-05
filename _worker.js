@@ -1,25 +1,35 @@
-import { connect } from 'cloudflare:sockets'; 
+import { connect } from 'cloudflare:sockets';
 
 // =============================================================================
-// 🟣 1. 用户配置区域 (优先级: 环境变量 > D1 > KV > 硬编码) 【优先环境变量调用用户配置区域】
+// 🟣 1. 用户配置区域 (优先级: 环境变量 > D1 > KV > 硬编码)
 // =============================================================================
-let UUID = "06b65903-406d-4a41-8463-6fd5c0ee7798";  //修改有效的uuid。不要使用默认值
-const WEB_PASSWORD = "你的登录密码";   //修改登录密码，不要使用默认值
-const SUB_PASSWORD = "你的订阅密码";   //修改订阅密码，不要使用默认值
-const DEFAULT_PROXY_IP = "ProxyIP.US.CMLiussss.net";  //可修改指定的proxyip
-const DEFAULT_SUB_DOMAIN = "sub.cmliussss.net";  // 可修改指定的sub订阅器
-const TG_GROUP_URL = "https://t.me/zyssadmin"; //可自定义修改任意内容
-const TG_CHANNEL_URL = "https://t.me/cloudflareorg"; //可自定义修改任意内容
-const PROXY_CHECK_URL = "https://kaic.hidns.co/"; //可修改proxyip检测站
-const DEFAULT_CONVERTER = "https://subapi.cmliussss.net"; //可修改订阅器转换api
-const CLASH_CONFIG = "https://raw.githubusercontent.com/cmliu/ACL4SSR/main/Clash/config/ACL4SSR_Online_Full_MultiMode.ini"; //可修改转换订阅的配置文件ini
-const SINGBOX_CONFIG_V12 = "https://raw.githubusercontent.com/sinspired/sub-store-template/main/1.12.x/sing-box.json"; //1.11无法使用时会自动切换到1.12进行调用，但可修改singbox的js配置。
-const SINGBOX_CONFIG_V11 = "https://raw.githubusercontent.com/sinspired/sub-store-template/main/1.11.x/sing-box.json"; //默认优先调用1.11，但可修改singbox的js配置。
-const TG_BOT_TOKEN = ""; //在此处telegram bot的token令牌
-const TG_CHAT_ID = ""; //在此处修改添加你的telegram 用户id
-const ADMIN_IP = ""; //在此处修改添加你的白名单IP
-const LOGIN_PAGE_TITLE = "Worker Login"; // 在此处修改你的登录页标题名
-const DASHBOARD_TITLE = "烈火控制台 · Glass LH";  // 在此处修改你的管理后台标题名
+
+// --- 基础账号与网络配置 ---
+let UUID = "06b65903-406d-4a41-8463-6fd5c0ee7798"; //修改可用的uuid
+const WEB_PASSWORD = "你的登录密码";  //修改你的登录密码
+const SUB_PASSWORD = "你的订阅密码";  //修改你的订阅密码
+const DEFAULT_PROXY_IP = "ProxyIP.US.CMLiussss.net"; // 支持多ProxyIP，使用逗号分隔
+const DEFAULT_SUB_DOMAIN = "sub.cmliussss.net";      // 支持多订阅域名，使用逗号分隔
+const DEFAULT_CONVERTER = "https://subapi.cmliussss.net"; // 支持多转换器，使用逗号分隔
+
+// --- 界面与链接配置 ---
+const LOGIN_PAGE_TITLE = "Worker Login"; // 修改你的登录页标题
+const DASHBOARD_TITLE = "烈火控制台 · Glass LH"; //修改你的管理后台标题
+const TG_GROUP_URL = "https://t.me/zyssadmin";       // 登录页“交流群”链接
+const SITE_URL = "https://blog.2026565.xyz/";        // 登录页“天诚网站”链接
+const GITHUB_URL = "https://github.com/xtgm/stallTCP1.3V1"; // 登录页“项目直达”链接
+const PROXY_CHECK_URL = "https://kaic.hidns.co/";    // 后台 ProxyIP 检测跳转地址
+
+// --- 订阅转换配置文件 (支持环境变量覆盖) ---
+const CLASH_CONFIG = "https://raw.githubusercontent.com/cmliu/ACL4SSR/main/Clash/config/ACL4SSR_Online_Full_MultiMode.ini"; //修改转换订阅配置文件ini
+const SINGBOX_CONFIG_V12 = "https://raw.githubusercontent.com/sinspired/sub-store-template/main/1.12.x/sing-box.json"; //修改singbox的json配置，默认使用1.11，如果无法使用才会切换1.12
+const SINGBOX_CONFIG_V11 = "https://raw.githubusercontent.com/sinspired/sub-store-template/main/1.11.x/sing-box.json"; //修改singbox的json配置，默认使用这个，如果无法使用才会切换1.12
+
+// --- 通知与高级参数 ---
+const TG_BOT_TOKEN = ""; //在此telegram bot的token令牌
+const TG_CHAT_ID = ""; //在此修改添加你的telegram 用户id
+const ADMIN_IP = ""; //在此修改添加你的白名单IP
+const DLS = "5000"; // ADDCSV 专用：速度下限筛选阈值 (单位 KB/s)
 
 // =============================================================================
 // 🟢 特征码深度混淆 (全文无敏感词)
@@ -394,20 +404,36 @@ export default {
       const _UUID = env.KEY ? await getDynamicUUID(env.KEY, env.UUID_REFRESH || 86400) : (await getSafeEnv(env, 'UUID', UUID));
       const _WEB_PW = await getSafeEnv(env, 'WEB_PASSWORD', WEB_PASSWORD);
       const _SUB_PW = await getSafeEnv(env, 'SUB_PASSWORD', SUB_PASSWORD);
-      const _PROXY_IP = await getSafeEnv(env, 'PROXYIP', DEFAULT_PROXY_IP);
+      
+      // ⭐ 功能1: 多ProxyIP轮询支持
+      let _PROXY_IP = await getSafeEnv(env, 'PROXYIP', DEFAULT_PROXY_IP);
+      const proxyIPs = _PROXY_IP.split(',').map(i => i.trim()).filter(i => i);
+      _PROXY_IP = proxyIPs[Math.floor(Date.now() / 1000) % proxyIPs.length] || _PROXY_IP;
+
       const _PS = await getSafeEnv(env, 'PS', "");
       const _LOGIN_TITLE = await getSafeEnv(env, 'LOGIN_PAGE_TITLE', LOGIN_PAGE_TITLE);
       const _DASH_TITLE = await getSafeEnv(env, 'DASHBOARD_TITLE', DASHBOARD_TITLE); 
       
-      let _SUB_DOMAIN = await getSafeEnv(env, 'SUB_DOMAIN', DEFAULT_SUB_DOMAIN);
-      let _CONVERTER = await getSafeEnv(env, 'SUBAPI', DEFAULT_CONVERTER);
+      // ⭐ 功能2 & 3: 准备多订阅域名和转换器的列表
+      let _SUB_DOMAIN_STR = await getSafeEnv(env, 'SUB_DOMAIN', DEFAULT_SUB_DOMAIN);
+      let _CONVERTER_STR = await getSafeEnv(env, 'SUBAPI', DEFAULT_CONVERTER);
+      const _SUB_DOMAIN_LIST = _SUB_DOMAIN_STR.split(',').map(s => { let v=s.trim(); if(v.includes("://")) v=v.split("://")[1]; if(v.includes("/")) v=v.split("/")[0]; return v; }).filter(s=>s);
+      const _CONVERTER_LIST = _CONVERTER_STR.split(',').map(s => { let v=s.trim(); if(v.endsWith("/")) v=v.slice(0, -1); if(!v.includes("://")) v="https://"+v; return v; }).filter(s=>s);
+      
+      // 取第一个作为默认值，用于界面显示
+      let _SUB_DOMAIN = _SUB_DOMAIN_LIST[0] || host;
+      let _CONVERTER = _CONVERTER_LIST[0] || DEFAULT_CONVERTER;
 
-      if (_SUB_DOMAIN.includes("://")) _SUB_DOMAIN = _SUB_DOMAIN.split("://")[1];
-      if (_SUB_DOMAIN.includes("/")) _SUB_DOMAIN = _SUB_DOMAIN.split("/")[0];
-      if (!_SUB_DOMAIN || _SUB_DOMAIN.trim() === "") _SUB_DOMAIN = host;
+      // ⭐ 功能4: DLS速度下限筛选
+      const _DLS = await getSafeEnv(env, 'DLS', DLS);
 
-      if (_CONVERTER.endsWith("/")) _CONVERTER = _CONVERTER.slice(0, -1);
-      if (!_CONVERTER.includes("://")) _CONVERTER = "https://" + _CONVERTER;
+      // 👇 变量去重与统一调用逻辑：优先 getSafeEnv(环境变量, 默认常量)
+      const _TG_GROUP_URL = await getSafeEnv(env, 'TG_GROUP_URL', TG_GROUP_URL);
+      const _PROXY_CHECK_URL = await getSafeEnv(env, 'PROXY_CHECK_URL', PROXY_CHECK_URL);
+      const _SITE_URL = await getSafeEnv(env, 'SITE_URL', SITE_URL);
+      const _GITHUB_URL = await getSafeEnv(env, 'GITHUB_URL', GITHUB_URL);
+      const _CLASH_CONFIG = await getSafeEnv(env, 'CLASH_CONFIG', CLASH_CONFIG);
+      const _SINGBOX_CONFIG_V12 = await getSafeEnv(env, 'SINGBOX_CONFIG_V12', SINGBOX_CONFIG_V12);
       
       if (UA_L.includes('spider') || UA_L.includes('bot') || UA_L.includes('python') || UA_L.includes('scrapy') || UA_L.includes('curl') || UA_L.includes('wget')) {
           return new Response('Not Found', { status: 404 });
@@ -466,27 +492,58 @@ export default {
           }
           const requestProxyIp = url.searchParams.get('proxyip') || _PROXY_IP;
           const pathParam = requestProxyIp ? "/proxyip=" + requestProxyIp : "/";
-          const subUrl = `https://${_SUB_DOMAIN}/sub?uuid=${_UUID}&encryption=none&security=tls&sni=${host}&alpn=h3&fp=random&allowInsecure=1&type=ws&host=${host}&path=${encodeURIComponent(pathParam)}`;
-
+          
           if (UA_L.includes('sing-box') || UA_L.includes('singbox') || UA_L.includes('clash') || UA_L.includes('meta') || UA_L.includes('loon') || UA_L.includes('surge')) {
               const type = (UA_L.includes('clash') || UA_L.includes('meta')) ? 'clash' : 'singbox';
-              const config = type === 'clash' ? CLASH_CONFIG : SINGBOX_CONFIG_V12;
-              const subApi = `${_CONVERTER}/sub?target=${type}&url=${encodeURIComponent(subUrl)}&config=${encodeURIComponent(config)}&emoji=true&list=false&sort=false&fdn=false&scv=false`;
-              try { const res = await fetch(subApi, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' } });
-                  if (res.ok) return new Response(res.body, { status: 200, headers: res.headers });
-              } catch(e) {}
+              const config = type === 'clash' ? _CLASH_CONFIG : _SINGBOX_CONFIG_V12;
+              
+              // ⭐ 功能3: 多订阅转换器故障切换
+              let lastRes = null;
+              for (const converterUrl of _CONVERTER_LIST) {
+                  // ⭐ 功能2: 多订阅源域名故障切换 (构建 subUrl 时循环尝试)
+                  // 注意：转换器一般只接受一个 url 参数，这里我们需要确定用哪个 subUrl 传给转换器
+                  // 策略：我们生成第一个可用的 subUrl (非当前 host) 传给转换器，或者直接传 host (如果是worker自身)
+                  // 简单起见，我们构造一个基于 _SUB_DOMAIN_LIST[0] 的 URL 传给转换器，因为转换器是服务器端抓取
+                  let targetSubDomain = _SUB_DOMAIN_LIST[0] || host;
+                  const subUrl = `https://${targetSubDomain}/sub?uuid=${_UUID}&encryption=none&security=tls&sni=${host}&alpn=h3&fp=random&allowInsecure=1&type=ws&host=${host}&path=${encodeURIComponent(pathParam)}`;
+                  
+                  const subApi = `${converterUrl}/sub?target=${type}&url=${encodeURIComponent(subUrl)}&config=${encodeURIComponent(config)}&emoji=true&list=false&sort=false&fdn=false&scv=false`;
+                  try {
+                      const res = await fetch(subApi, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' } });
+                      if (res.ok) { lastRes = res; break; } // 成功则跳出循环
+                  } catch(e) {}
+              }
+              if (lastRes) return new Response(lastRes.body, { status: 200, headers: lastRes.headers });
           }
+          
+          // 原生订阅处理 (支持多域名故障切换)
           try {
-            if (host.toLowerCase() !== _SUB_DOMAIN.toLowerCase()) {
-                const res = await fetch(subUrl, { headers: { 'User-Agent': UA } });
-                if (res.ok) {
-                    let body = await res.text();
-                    if (_PS) { try { const decoded = atob(body); const modified = decoded.split('\n').map(line => { line = line.trim(); if (!line || !line.includes('://')) return line; if (line.includes('#')) return line + encodeURIComponent(` ${_PS}`); return line + '#' + encodeURIComponent(_PS); }).join('\n'); body = btoa(modified); } catch(e) {} }
-                    return new Response(body, { status: 200, headers: res.headers });
-                }
+            let success = false;
+            let body = "";
+            let finalHeaders = {};
+            
+            // ⭐ 功能2: 多订阅源域名故障切换
+            for (const subDomain of _SUB_DOMAIN_LIST) {
+                if (host.toLowerCase() === subDomain.toLowerCase()) continue; // 跳过自身，防止死循环 (如果是自请求)
+                const subUrl = `https://${subDomain}/sub?uuid=${_UUID}&encryption=none&security=tls&sni=${host}&alpn=h3&fp=random&allowInsecure=1&type=ws&host=${host}&path=${encodeURIComponent(pathParam)}`;
+                try {
+                    const res = await fetch(subUrl, { headers: { 'User-Agent': UA } });
+                    if (res.ok) {
+                        body = await res.text();
+                        finalHeaders = res.headers;
+                        success = true;
+                        break; 
+                    }
+                } catch(e) {}
+            }
+
+            if (success) {
+                if (_PS) { try { const decoded = atob(body); const modified = decoded.split('\n').map(line => { line = line.trim(); if (!line || !line.includes('://')) return line; if (line.includes('#')) return line + encodeURIComponent(` ${_PS}`); return line + '#' + encodeURIComponent(_PS); }).join('\n'); body = btoa(modified); } catch(e) {} }
+                return new Response(body, { status: 200, headers: finalHeaders });
             }
           } catch(e) {}
-          const allIPs = await getCustomIPs(env);
+          
+          const allIPs = await getCustomIPs(env, _DLS); // 传入 DLS
           const listText = genNodes(host, _UUID, requestProxyIp, allIPs, _PS);
           return new Response(btoa(unescape(encodeURIComponent(listText))), { status: 200, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
       }
@@ -498,14 +555,14 @@ export default {
           let proxyIp = url.searchParams.get('proxyip') || _PROXY_IP;
           const pathParam = url.searchParams.get('path');
           if (pathParam && pathParam.includes('/proxyip=')) proxyIp = pathParam.split('/proxyip=')[1];
-          const allIPs = await getCustomIPs(env);
+          const allIPs = await getCustomIPs(env, _DLS); // 传入 DLS
           const listText = genNodes(host, _UUID, proxyIp, allIPs, _PS);
           return new Response(btoa(unescape(encodeURIComponent(listText))), { status: 200, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
       }
 
       if (r.headers.get('Upgrade') !== 'websocket') {
         const noCacheHeaders = { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'X-Frame-Options': 'DENY', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-origin' };
-        if (!hasAuthCookie) return new Response(loginPage(TG_GROUP_URL, TG_CHANNEL_URL, _LOGIN_TITLE), { status: 200, headers: noCacheHeaders });
+        if (!hasAuthCookie) return new Response(loginPage(_TG_GROUP_URL, _SITE_URL, _GITHUB_URL, _LOGIN_TITLE), { status: 200, headers: noCacheHeaders });
         await sendTgMsg(ctx, env, "✅ 后台登录成功", r, "进入管理面板", true);
         ctx.waitUntil(logAccess(env, clientIP, `${city},${country}`, "登录后台"));
 
@@ -517,7 +574,8 @@ export default {
         const tgState = !!(tgToken && tgId); const cfState = (!!(cfId && cfToken)) || (!!(cfMail && cfKey));
         const _ADD = await getSafeEnv(env, 'ADD', ""); const _ADDAPI = await getSafeEnv(env, 'ADDAPI', ""); const _ADDCSV = await getSafeEnv(env, 'ADDCSV', "");
 
-        return new Response(dashPage(url.hostname, _UUID, _PROXY_IP, _SUB_PW, _SUB_DOMAIN, _CONVERTER, env, clientIP, hasAuthCookie, tgState, cfState, _ADD, _ADDAPI, _ADDCSV, tgToken, tgId, cfId, cfToken, cfMail, cfKey, sysParams, _DASH_TITLE), { status: 200, headers: noCacheHeaders });
+        // 传入 _DLS 参数到 dashPage
+        return new Response(dashPage(url.hostname, _UUID, _PROXY_IP, _SUB_PW, _SUB_DOMAIN, _CONVERTER, env, clientIP, hasAuthCookie, tgState, cfState, _ADD, _ADDAPI, _ADDCSV, tgToken, tgId, cfId, cfToken, cfMail, cfKey, sysParams, _DASH_TITLE, _PROXY_CHECK_URL, _DLS), { status: 200, headers: noCacheHeaders });
       }
       
       // 🟢 代理入口 - 混淆版
@@ -561,18 +619,44 @@ function genNodes(host, uuid, proxyIP, customIPs, psName) {
   return result.join('\n');
 }
 
-async function getCustomIPs(env) {
+// ⭐ 功能4: 修改 getCustomIPs 支持 DLS 筛选
+async function getCustomIPs(env, dlsThreshold) {
     let allIPs = [];
+    const threshold = Number(dlsThreshold) || 5000; // 默认5000
     const addText = await getSafeEnv(env, 'ADD', "");
     if (addText) { addText.split('\n').forEach(line => { const trimmed = line.trim(); if (trimmed && !trimmed.startsWith('#')) allIPs.push(trimmed); }); }
     const addApi = await getSafeEnv(env, 'ADDAPI', "");
     if (addApi) { const urls = addApi.split('\n').filter(u => u.trim().startsWith('http')); for (const url of urls) { try { const res = await fetch(url.trim(), { headers: { 'User-Agent': 'Mozilla/5.0' } }); if (res.ok) { const text = await res.text(); text.split('\n').forEach(line => { const trimmed = line.trim(); if (trimmed && !trimmed.startsWith('#')) allIPs.push(trimmed); }); } } catch (e) {} } }
     const addCsv = await getSafeEnv(env, 'ADDCSV', "");
-    if (addCsv) { const urls = addCsv.split('\n').filter(u => u.trim().startsWith('http')); for (const url of urls) { try { const res = await fetch(url.trim(), { headers: { 'User-Agent': 'Mozilla/5.0' } }); if (res.ok) { const text = await res.text(); text.split('\n').forEach(line => { const trimmed = line.trim(); const firstCol = trimmed.split(',')[0]; if (firstCol && !firstCol.startsWith('#')) allIPs.push(firstCol); }); } } catch (e) {} } }
+    if (addCsv) { 
+        const urls = addCsv.split('\n').filter(u => u.trim().startsWith('http')); 
+        for (const url of urls) { 
+            try { 
+                const res = await fetch(url.trim(), { headers: { 'User-Agent': 'Mozilla/5.0' } }); 
+                if (res.ok) { 
+                    const text = await res.text(); 
+                    text.split('\n').forEach(line => { 
+                        const trimmed = line.trim(); 
+                        if (!trimmed || trimmed.startsWith('#')) return;
+                        // CSV格式: IP,端口,TLS,数据中心,地区,城市,网络延迟,下载速度
+                        // 索引: 0, 1, 2, 3, 4, 5, 6, 7
+                        const cols = trimmed.split(',');
+                        if (cols.length >= 8) {
+                            const speed = Number(cols[7]);
+                            if (!isNaN(speed) && speed < threshold) return; // 速度低于阈值则跳过
+                        }
+                        const firstCol = cols[0]; 
+                        // 将CSV行也尝试作为IP加入 (通常CSV第一列就是IP)
+                        if (firstCol) allIPs.push(firstCol); 
+                    }); 
+                } 
+            } catch (e) {} 
+        } 
+    }
     return allIPs;
 }
 
-function loginPage(tgGroup, tgChannel, pageTitle) {
+function loginPage(tgGroup, siteUrl, githubUrl, pageTitle) {
     return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -603,7 +687,7 @@ function loginPage(tgGroup, tgChannel, pageTitle) {
         .meteor:nth-child(7) { top: 18%; left: 45%; animation-duration: 2.4s; animation-delay: 4.5s; }
         .meteor:nth-child(8) { top: 10%; left: 65%; animation-duration: 1.9s; animation-delay: 5.2s; }
 
-        /* 毛玻璃碎片容器 */
+        /* 毛玻璃碎片 */
         .glass-shards { position: absolute; width: 100%; height: 100%; z-index: 2; pointer-events: none; }
         .shard { position: absolute; background: linear-gradient(135deg, rgba(79, 172, 254, 0.08), rgba(157, 127, 245, 0.05)); backdrop-filter: blur(8px); border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2); animation: shardFloat 25s infinite ease-in-out; }
         .shard:nth-child(1) { width: 180px; height: 180px; top: 5%; left: 10%; clip-path: polygon(30% 0%, 70% 10%, 100% 40%, 90% 80%, 50% 100%, 10% 90%, 0% 50%); animation-delay: 0s; }
@@ -614,11 +698,10 @@ function loginPage(tgGroup, tgChannel, pageTitle) {
         .shard:nth-child(6) { width: 130px; height: 180px; bottom: 15%; left: 45%; clip-path: polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%); animation-delay: -18s; }
         @keyframes shardFloat { 0%, 100% { transform: translateY(0) rotate(0deg); opacity: 0.4; } 25% { transform: translateY(-25px) rotate(3deg); opacity: 0.6; } 50% { transform: translateY(-40px) rotate(-2deg); opacity: 0.5; } 75% { transform: translateY(-20px) rotate(4deg); opacity: 0.7; } }
 
-        /* 主登录框 - 毛玻璃效果 */
+        /* 登录框 */
         .glass-box { position: relative; z-index: 10; background: rgba(15, 25, 50, 0.4); backdrop-filter: blur(20px) saturate(180%); border: 2px solid rgba(255, 255, 255, 0.1); padding: 45px 40px; border-radius: 20px; box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5), inset 0 0 20px rgba(255,255,255,0.05); text-align: center; width: 380px; animation: boxAppear 0.8s ease-out; }
         @keyframes boxAppear { from { opacity: 0; transform: scale(0.9) translateY(20px); } to { opacity: 1; transform: scale(1) translateY(0); } }
-
-        /* 发光边框效果 */
+        
         .glass-box::before { content: ''; position: absolute; top: -2px; left: -2px; right: -2px; bottom: -2px; background: linear-gradient(45deg, #00f5ff, #0080ff, #00f5ff, #0080ff); border-radius: 20px; z-index: -1; opacity: 0.3; filter: blur(10px); animation: borderGlow 3s linear infinite; }
         @keyframes borderGlow { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.6; } }
 
@@ -640,17 +723,50 @@ function loginPage(tgGroup, tgChannel, pageTitle) {
         .btn-unlock { background: linear-gradient(135deg, rgba(138, 43, 226, 0.8), rgba(75, 0, 130, 0.8)); color: white; box-shadow: 0 4px 15px rgba(138, 43, 226, 0.4); border: 1px solid rgba(138, 43, 226, 0.5); }
         .btn-unlock:hover { box-shadow: 0 6px 25px rgba(138, 43, 226, 0.6); transform: translateY(-2px); }
 
-        .social-links { margin-top: 30px; display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; }
-        .pill { background: rgba(0, 245, 255, 0.1); backdrop-filter: blur(10px); padding: 8px 16px; border-radius: 25px; color: #00f5ff; text-decoration: none; font-size: 0.85rem; display: flex; align-items: center; gap: 6px; transition: all 0.3s; border: 1px solid rgba(0, 245, 255, 0.3); }
-        .pill:hover { background: rgba(0, 245, 255, 0.2); border-color: #00f5ff; color: white; box-shadow: 0 0 15px rgba(0, 245, 255, 0.5); transform: translateY(-2px); }
+        /* 修改部分开始：一行两个，平分宽度 */
+        .social-links { 
+            margin-top: 12px; 
+            display: flex; 
+            gap: 12px; /* 两个按钮之间的间距 */
+            /* 默认 flex-direction 就是 row，所以这里就是一行显示 */
+        }
+        
+        .pill { 
+            flex: 1; /* 让两个按钮自动平分宽度 */
+            background: linear-gradient(135deg, rgba(138, 43, 226, 0.8), rgba(75, 0, 130, 0.8)); 
+            backdrop-filter: blur(10px); 
+            padding: 14px; 
+            border-radius: 12px; /* 保持与上面按钮一致的方圆角 */
+            color: white; 
+            text-decoration: none; 
+            font-size: 0.9rem; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; /* 文字居中 */
+            gap: 4px; 
+            transition: all 0.3s; 
+            border: 1px solid rgba(138, 43, 226, 0.5); 
+            box-shadow: 0 4px 15px rgba(138, 43, 226, 0.4); 
+            font-weight: 600;
+            white-space: nowrap; /* 防止文字换行 */
+        }
+        
+        .pill:hover { 
+            background: linear-gradient(135deg, rgba(138, 43, 226, 1), rgba(75, 0, 130, 1)); 
+            border-color: rgba(138, 43, 226, 0.8); 
+            color: white; 
+            box-shadow: 0 6px 25px rgba(138, 43, 226, 0.6); 
+            transform: translateY(-2px); 
+        }
+        /* 修改部分结束 */
 
-        /* 响应式 - 登录页面 */
+        /* 响应式 */
         @media (max-width: 768px) {
             .glass-box { width: 90%; max-width: 380px; padding: 35px 25px; }
             h2 { font-size: 1.4rem; }
             input { padding: 12px 15px; font-size: 0.95rem; }
             button { padding: 12px; font-size: 0.95rem; }
-            .pill { font-size: 0.8rem; padding: 7px 14px; }
+            .pill { font-size: 0.85rem; padding: 12px 8px; } /* 手机端稍微减小内边距 */
         }
         @media (max-width: 480px) {
             .glass-box { width: 95%; padding: 30px 20px; }
@@ -659,65 +775,39 @@ function loginPage(tgGroup, tgChannel, pageTitle) {
             input { padding: 10px 12px; font-size: 0.9rem; margin-bottom: 15px; }
             button { padding: 10px; font-size: 0.9rem; }
             .btn-group { gap: 10px; }
-            .social-links { gap: 8px; margin-top: 20px; }
-            .pill { font-size: 0.75rem; padding: 6px 12px; }
-        }
-        @media (max-width: 360px) {
-            .glass-box { width: 98%; padding: 25px 15px; }
-            h2 { font-size: 1.1rem; }
-            input { font-size: 0.85rem; }
-            button { font-size: 0.85rem; }
-            .pill { font-size: 0.7rem; padding: 5px 10px; }
+            .social-links { gap: 10px; margin-top: 10px; }
+            .pill { font-size: 0.8rem; padding: 10px 5px; }
         }
     </style>
 </head>
 <body>
-    <!-- 星空背景 -->
     <div class="stars" id="starsContainer"></div>
-
-    <!-- 流星雨 -->
     <div class="stars">
-        <div class="meteor"></div>
-        <div class="meteor"></div>
-        <div class="meteor"></div>
-        <div class="meteor"></div>
-        <div class="meteor"></div>
-        <div class="meteor"></div>
-        <div class="meteor"></div>
-        <div class="meteor"></div>
+        <div class="meteor"></div><div class="meteor"></div><div class="meteor"></div><div class="meteor"></div>
+        <div class="meteor"></div><div class="meteor"></div><div class="meteor"></div><div class="meteor"></div>
     </div>
-
-    <!-- 毛玻璃碎片 -->
     <div class="glass-shards">
-        <div class="shard"></div>
-        <div class="shard"></div>
-        <div class="shard"></div>
-        <div class="shard"></div>
-        <div class="shard"></div>
-        <div class="shard"></div>
+        <div class="shard"></div><div class="shard"></div><div class="shard"></div>
+        <div class="shard"></div><div class="shard"></div><div class="shard"></div>
     </div>
 
-    <!-- 登录框 -->
     <div class="glass-box">
-        <h2>禁止进入</h2>
+        <h2>管理员登陆</h2>
         <input type="password" id="pwd" placeholder="请输入密码" autofocus autocomplete="new-password" onkeypress="if(event.keyCode===13)verify()">
         <div class="btn-group">
-            <button class="btn-primary" onclick="alert('请直接输入密码解锁')">请输入密码</button>
-            <button class="btn-unlock" onclick="verify()">解锁后台</button>
+            <button class="btn-unlock" onclick="verify()">立即登陆</button>
+            <button class="btn-primary" onclick="window.open('${siteUrl}', '_blank')">天诚网站</button>
         </div>
         <div class="social-links">
             <a href="javascript:void(0)" onclick="gh()" class="pill">🔥 烈火项目直达</a>
-            <a href="${tgChannel}" target="_blank" class="pill">📢 天诚频道组</a>
             <a href="${tgGroup}" target="_blank" class="pill">✈️ 天诚交流群</a>
         </div>
     </div>
 
     <script>
-        // 生成星星背景
         function generateStars() {
             const starsContainer = document.getElementById('starsContainer');
-            const starCount = 200;
-            for (let i = 0; i < starCount; i++) {
+            for (let i = 0; i < 200; i++) {
                 const star = document.createElement('div');
                 star.className = 'star';
                 star.style.left = Math.random() * 100 + '%';
@@ -731,8 +821,7 @@ function loginPage(tgGroup, tgChannel, pageTitle) {
             }
         }
         generateStars();
-
-        function gh(){fetch("?flag=github&t="+Date.now(),{keepalive:!0});window.open("https://github.com/xtgm/stallTCP1.3V1","_blank")}
+        function gh(){fetch("?flag=github&t="+Date.now(),{keepalive:!0});window.open("${githubUrl}","_blank")}
         function verify(){
             const p = document.getElementById("pwd").value;
             if(!p) return;
@@ -751,7 +840,8 @@ function loginPage(tgGroup, tgChannel, pageTitle) {
 </html>`;
 }
 
-function dashPage(host, uuid, proxyip, subpass, subdomain, converter, env, clientIP, hasAuth, tgState, cfState, add, addApi, addCsv, tgToken, tgId, cfId, cfToken, cfMail, cfKey, sysParams, dashTitle) {
+// 👇 修改：增加 proxyCheckUrl 参数
+function dashPage(host, uuid, proxyip, subpass, subdomain, converter, env, clientIP, hasAuth, tgState, cfState, add, addApi, addCsv, tgToken, tgId, cfId, cfToken, cfMail, cfKey, sysParams, dashTitle, proxyCheckUrl, dls) {
     const defaultSubLink = `https://${host}/${subpass}`;
     const pathParam = proxyip ? "/proxyip=" + proxyip : "/";
     const longLink = `https://${subdomain}/sub?uuid=${uuid}&encryption=none&security=tls&sni=${host}&alpn=h3&fp=random&allowInsecure=1&type=ws&host=${host}&path=${encodeURIComponent(pathParam)}`;
@@ -790,6 +880,7 @@ function dashPage(host, uuid, proxyip, subpass, subdomain, converter, env, clien
             --danger: #f87171;
         }
         body.light {
+            /* 浅色主题 - 加深颜色变量以增强对比度 */
             --glass-blue: #2563eb;
             --glass-purple: #7c3aed;
             --glass-cyan: #0891b2;
@@ -806,8 +897,9 @@ function dashPage(host, uuid, proxyip, subpass, subdomain, converter, env, clien
             --warning: #d97706;
             --danger: #dc2626;
         }
+        /* 👇 修改：白色主题背景改为天蓝色渐变 */
         body.light {
-            background: linear-gradient(135deg, #e0f2fe 0%, #ddd6fe 50%, #fce7f3 100%);
+            background: linear-gradient(to bottom, #f0f9ff 0%, #bae6fd 50%, #38bdf8 100%);
         }
         body.light .shard {
             background: linear-gradient(135deg, rgba(37, 99, 235, 0.06), rgba(124, 58, 237, 0.04));
@@ -1027,7 +1119,10 @@ function dashPage(host, uuid, proxyip, subpass, subdomain, converter, env, clien
             min-height: 100vh;
             display: flex;
             gap: 20px;
-            padding: 20px;
+            /* 👇 增加顶部Padding，并设置最大宽度用于超大屏适配 */
+            padding: 100px 20px 20px 20px;
+            max-width: 1920px;
+            margin: 0 auto;
         }
 
         /* 左侧边栏 - 玻璃态 */
@@ -1041,7 +1136,8 @@ function dashPage(host, uuid, proxyip, subpass, subdomain, converter, env, clien
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
             height: fit-content;
             position: sticky;
-            top: 20px;
+            /* 👇 修改Sticky偏移量，使其与主内容对齐 */
+            top: 100px;
             flex-shrink: 0;
         }
 
@@ -1095,6 +1191,18 @@ function dashPage(host, uuid, proxyip, subpass, subdomain, converter, env, clien
             transform: translateY(0);
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
         }
+        
+        /* 👇 修改：退出按钮默认样式一致，悬浮变红 */
+        .tool-btn.logout {
+            border-color: rgba(248, 113, 113, 0.5); 
+            color: #f87171; 
+        }
+        .tool-btn.logout:hover {
+            background: rgba(248, 113, 113, 0.2);
+            border-color: var(--danger);
+            box-shadow: 0 4px 15px var(--danger);
+            color: white;
+        }
 
         /* 侧边栏Logo */
         .logo {
@@ -1116,7 +1224,8 @@ function dashPage(host, uuid, proxyip, subpass, subdomain, converter, env, clien
             50% { transform: translateY(-8px) rotate(5deg); }
         }
         .logo-text {
-            font-size: 1.2rem;
+            /* 👇 增大字号 */
+            font-size: 1.5rem;
             font-weight: 700;
             background: linear-gradient(135deg, var(--glass-blue), var(--glass-purple), var(--glass-cyan), var(--glass-pink));
             background-size: 300% 300%;
@@ -1126,30 +1235,48 @@ function dashPage(host, uuid, proxyip, subpass, subdomain, converter, env, clien
             letter-spacing: 2px;
             text-align: center;
             animation: logoGradient 4s ease infinite;
-            filter: drop-shadow(0 0 8px var(--glass-blue)) drop-shadow(0 0 12px var(--glass-purple));
+            /* 👇 优化滤镜，去除模糊，改为清晰阴影 */
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
         }
         @keyframes logoGradient {
             0% {
                 background-position: 0% 50%;
-                filter: drop-shadow(0 0 8px var(--glass-blue)) drop-shadow(0 0 12px var(--glass-purple));
+                filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
             }
             25% {
-                filter: drop-shadow(0 0 8px var(--glass-purple)) drop-shadow(0 0 12px var(--glass-cyan));
+                filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
             }
             50% {
                 background-position: 100% 50%;
-                filter: drop-shadow(0 0 8px var(--glass-cyan)) drop-shadow(0 0 12px var(--glass-pink));
+                filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
             }
             75% {
-                filter: drop-shadow(0 0 8px var(--glass-pink)) drop-shadow(0 0 12px var(--glass-blue));
+                filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
             }
             100% {
                 background-position: 0% 50%;
-                filter: drop-shadow(0 0 8px var(--glass-blue)) drop-shadow(0 0 12px var(--glass-purple));
+                filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
             }
         }
+        
+        /* 👇 针对白色模式的Logo优化：恢复动态渐变，使用深色变量，增加微阴影 */
+        body.light .logo-text {
+            background: linear-gradient(135deg, var(--glass-blue), var(--glass-purple), var(--glass-cyan), var(--glass-pink));
+            background-size: 300% 300%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: logoGradient 4s ease infinite;
+            filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.2)); /* 轻微阴影增加对比度，去除模糊光晕 */
+            text-shadow: none;
+        }
+        body.light .logo-icon {
+            filter: drop-shadow(0 0 10px rgba(37, 99, 235, 0.6));
+        }
+
         .logo-sub {
-            font-size: 0.7rem;
+            /* 👇 稍微增大副标题 */
+            font-size: 0.85rem;
             color: var(--text-dim);
             letter-spacing: 1px;
             text-align: center;
@@ -1167,16 +1294,17 @@ function dashPage(host, uuid, proxyip, subpass, subdomain, converter, env, clien
             gap: 8px;
         }
         .nav-item {
-            padding: 12px 15px;
+            /* 👇 增大Padding和字号 */
+            padding: 14px 20px;
             background: rgba(79, 172, 254, 0.05);
             border: 1px solid transparent;
             border-radius: 12px;
             cursor: pointer;
             transition: all 0.3s;
-            font-size: 0.9rem;
+            font-size: 1.1rem;
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 15px; /* 增加图标和文字间距 */
             color: var(--text);
             position: relative;
             overflow: hidden;
@@ -1323,10 +1451,32 @@ function dashPage(host, uuid, proxyip, subpass, subdomain, converter, env, clien
             50% { opacity: 0.6; background-position: 100% 50%; }
             100% { opacity: 0.3; background-position: 0% 50%; }
         }
+        
+        /* 👇 修复暗色模式图标显示为方块的问题 */
         .nav-item .icon {
-            font-size: 1.2rem;
+            /* 👇 增大图标 */
+            font-size: 1.4rem;
             width: 24px;
             text-align: center;
+            /* 关键修复：重置背景裁剪和填充颜色 */
+            background: none;
+            -webkit-background-clip: initial;
+            -webkit-text-fill-color: initial;
+            color: #e8eaf6; /* 设置为淡白色 */
+            text-shadow: 0 0 10px var(--glass-blue); /* 添加发光使其协调 */
+        }
+        
+        /* 激活状态下的图标颜色 */
+        .nav-item.active .icon {
+            background: none;
+            -webkit-text-fill-color: initial;
+            color: #ffffff;
+        }
+
+        /* 白色模式下的图标保持原样(代码里已经有针对body.light的处理，只需微调确保优先级) */
+        body.light .nav-item .icon {
+            color: #2563eb;
+            text-shadow: none;
         }
 
         /* 主内容区 */
@@ -1335,6 +1485,7 @@ function dashPage(host, uuid, proxyip, subpass, subdomain, converter, env, clien
             display: block;
             width: 100%;
             min-width: 0;
+            /* 👇 移除了 padding-top，由容器统一控制 */
         }
 
         /* 工具按钮提示 */
@@ -1868,6 +2019,7 @@ function dashPage(host, uuid, proxyip, subpass, subdomain, converter, env, clien
             border-radius: 20px;
             box-shadow: 0 10px 50px var(--glow);
             position: relative;
+            overflow: hidden; /* Added overflow: hidden to clip the top line */
         }
         .modal-content::before {
             content: '';
@@ -1942,7 +2094,8 @@ function dashPage(host, uuid, proxyip, subpass, subdomain, converter, env, clien
             .container {
                 flex-direction: column;
                 padding: 10px;
-                padding-top: 70px;
+                /* 👇 移动端无需超大顶部间距，已由布局自动处理 */
+                padding-top: 80px;
             }
             .sidebar {
                 width: 100%;
@@ -2031,6 +2184,10 @@ function dashPage(host, uuid, proxyip, subpass, subdomain, converter, env, clien
             .btn-group { flex-direction: column; }
             .log-entry { flex-direction: column; align-items: flex-start; gap: 5px; }
             .log-time, .log-ip, .log-loc { width: 100%; }
+            /* Mobile adjustments */
+            .main-content {
+                padding-top: 0; /* Reset for mobile since container handles it */
+            }
         }
 
         /* 小屏手机 */
@@ -2205,7 +2362,7 @@ function dashPage(host, uuid, proxyip, subpass, subdomain, converter, env, clien
             <button class="tool-btn" onclick="toggleTheme()" data-tooltip="切换主题">🌗</button>
             <button class="tool-btn" onclick="showModal('tgModal')" data-tooltip="TG通知">🤖 <span class="status-dot ${tgState ? 'on' : 'off'}"></span></button>
             <button class="tool-btn" onclick="showModal('cfModal')" data-tooltip="CF统计">☁️ <span class="status-dot ${cfState ? 'on' : 'off'}"></span></button>
-            <button class="tool-btn" onclick="logout()" style="background:rgba(248,113,113,0.2);border-color:var(--danger)" data-tooltip="退出">⏻</button>
+            <button class="tool-btn logout" onclick="logout()" data-tooltip="退出">⏻</button>
         </div>
 
         <!-- 主内容区 -->
@@ -2269,6 +2426,7 @@ function dashPage(host, uuid, proxyip, subpass, subdomain, converter, env, clien
                         <label>ProxyIP (优选)</label>
                         <div class="input-group-row">
                             <input type="text" id="pIp" value="${proxyip}" oninput="updateLink()">
+                            <!-- 👇 修改：传入 proxyCheckUrl -->
                             <button class="btn btn-primary" onclick="checkProxy()">检测</button>
                         </div>
                     </div>
@@ -2324,6 +2482,11 @@ function dashPage(host, uuid, proxyip, subpass, subdomain, converter, env, clien
                     <div class="input-block">
                         <label>ADDCSV - 远程优选 CSV 链接 (支持多行)</label>
                         <textarea id="inpAddCsv" placeholder="https://example.com/ips.csv">${safeVal(addCsv)}</textarea>
+                    </div>
+                    <!-- ⭐ 功能4: DLS 设置输入框 -->
+                    <div class="input-block">
+                        <label>DLS (ADDCSV专用) - 速度下限筛选 (单位: KB/s)</label>
+                        <input type="text" id="inpDls" placeholder="5000" value="${safeVal(dls)}">
                     </div>
                     <button class="btn btn-success" style="width:100%" onclick="saveNodeConfig()">💾 保存配置</button>
                 </div>
@@ -2531,7 +2694,7 @@ function dashPage(host, uuid, proxyip, subpass, subdomain, converter, env, clien
                 try { await navigator.clipboard.writeText(val); alert("✅ ProxyIP 已复制\\n\\n点击确定跳转检测网站..."); }
                 catch(e) { alert("跳转检测网站..."); }
                 fetch('?flag=log_proxy_check');
-                window.open("${PROXY_CHECK_URL}", "_blank");
+                window.open("${proxyCheckUrl}", "_blank");
             }
         }
 
@@ -2550,8 +2713,9 @@ function dashPage(host, uuid, proxyip, subpass, subdomain, converter, env, clien
             } catch(e) { alert('保存失败: ' + e); }
         }
 
+        // ⭐ 功能4: 保存 DLS 配置
         function saveNodeConfig() {
-            const data = { ADD: val('inpAdd'), ADDAPI: val('inpAddApi'), ADDCSV: val('inpAddCsv') };
+            const data = { ADD: val('inpAdd'), ADDAPI: val('inpAddApi'), ADDCSV: val('inpAddCsv'), DLS: val('inpDls') };
             saveConfig(data, null);
         }
 
